@@ -3,24 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Taiwan OSINT Monitor</title>
-    <!-- 引入 Globe.gl 來達成類似 WorldMonitor 的 3D 地球視覺效果 -->
+    <title>台灣開源情報監測站 (Taiwan OSINT Monitor)</title>
+    <!-- 引入 Globe.gl 來達成 3D 地球視覺效果 -->
     <script src="https://unpkg.com/globe.gl"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@400;600&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Noto+Sans+TC:wght@400;700&display=swap');
         
         :root {
             --bg: #050505;
-            --panel-bg: rgba(9, 9, 14, 0.75);
+            --panel-bg: rgba(9, 9, 14, 0.82);
             --border: #2a2a35;
             --text: #e2e8f0;
             --muted: #94a3b8;
-            --accent: #3b82f6;
+            --accent: #00f3ff; /* 改用高亮青藍色提升清晰度 */
             --danger: #ef4444;
             --warning: #f59e0b;
             --success: #10b981;
             --mono: 'JetBrains Mono', monospace;
-            --sans: 'Inter', sans-serif;
+            --sans: 'Noto Sans TC', sans-serif;
         }
 
         body, html {
@@ -41,16 +41,16 @@
 
         header {
             pointer-events: auto; padding: 12px 24px;
-            background: linear-gradient(180deg, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0) 100%);
+            background: linear-gradient(180deg, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0) 100%);
             display: flex; justify-content: space-between; align-items: center;
-            font-family: var(--mono); border-bottom: 1px solid rgba(255,255,255,0.05);
+            font-family: var(--mono); border-bottom: 1px solid rgba(0, 243, 255, 0.2);
         }
 
         .logo { font-size: 1.2rem; font-weight: bold; letter-spacing: 2px; color: var(--text); }
-        .logo span { color: var(--accent); }
+        .logo span { color: var(--accent); text-shadow: 0 0 10px rgba(0,243,255,0.5); }
         .sys-status { display: flex; gap: 20px; align-items: center; font-size: 0.85rem; }
         .sys-status .time { color: var(--muted); }
-        .sys-status .badge { padding: 4px 8px; background: rgba(16, 185, 129, 0.1); color: var(--success); border: 1px solid var(--success); border-radius: 4px; }
+        .sys-status .badge { padding: 4px 8px; background: rgba(16, 185, 129, 0.15); color: var(--success); border: 1px solid var(--success); border-radius: 4px; }
 
         .dashboard {
             flex: 1; display: flex; justify-content: space-between;
@@ -60,15 +60,15 @@
 
         .panel {
             pointer-events: auto; width: 340px;
-            background: var(--panel-bg); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+            background: var(--panel-bg); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
             border: 1px solid var(--border); border-radius: 8px;
-            display: flex; flex-direction: column; box-shadow: 0 4px 30px rgba(0,0,0,0.5);
+            display: flex; flex-direction: column; box-shadow: 0 8px 32px rgba(0,0,0,0.8);
         }
 
         .panel-header {
             padding: 12px 16px; background: rgba(255,255,255,0.03);
             border-bottom: 1px solid var(--border); font-family: var(--mono);
-            font-size: 0.8rem; font-weight: bold; color: var(--muted);
+            font-size: 0.8rem; font-weight: bold; color: var(--accent);
             letter-spacing: 1px; text-transform: uppercase;
         }
 
@@ -77,13 +77,12 @@
             scrollbar-width: thin; scrollbar-color: #334155 transparent;
         }
 
-        /* Widgets */
         .widget {
-            background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.05);
+            background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.08);
             border-radius: 6px; padding: 12px; margin-bottom: 12px;
             display: flex; justify-content: space-between; align-items: center;
         }
-        .widget-label { font-size: 0.8rem; color: var(--muted); font-family: var(--mono); }
+        .widget-label { font-size: 0.85rem; color: var(--muted); }
         .widget-val { font-size: 1.1rem; font-family: var(--mono); font-weight: bold; }
         
         .feed-item {
@@ -92,64 +91,91 @@
         }
         .feed-item:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
         .feed-meta { font-family: var(--mono); font-size: 0.75rem; color: var(--accent); margin-bottom: 6px; display: flex; justify-content: space-between; }
-        .feed-title { font-size: 0.9rem; line-height: 1.5; color: #cbd5e1; }
+        .feed-title { font-size: 0.88rem; line-height: 1.5; color: #cbd5e1; }
         .feed-title a { color: inherit; text-decoration: none; }
         .feed-title a:hover { color: #fff; text-decoration: underline; }
 
-        .tag { font-size: 0.65rem; padding: 2px 6px; border-radius: 4px; background: #333; color: #fff; }
-        .tag.alert { background: rgba(239,68,68,0.2); color: var(--danger); border: 1px solid var(--danger); }
+        .tag { font-size: 0.65rem; padding: 2px 6px; border-radius: 4px; background: #222; color: #fff; border: 1px solid #444; }
+        .tag.alert { background: rgba(239,68,68,0.25); color: var(--danger); border: 1px solid var(--danger); }
+
+        /* 3D 地球上的高亮地名標籤與脈衝點樣式 */
+        .map-marker {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            user-select: none;
+        }
+        .marker-dot {
+            width: 10px;
+            height: 10px;
+            background-color: var(--accent);
+            border-radius: 50%;
+            box-shadow: 0 0 10px var(--accent), 0 0 20px var(--accent);
+        }
+        .marker-label {
+            background: rgba(5, 10, 20, 0.9);
+            border: 1px solid var(--accent);
+            color: var(--accent);
+            padding: 3px 8px;
+            font-family: var(--mono);
+            font-size: 0.75rem;
+            font-weight: bold;
+            border-radius: 4px;
+            white-space: nowrap;
+            box-shadow: 0 0 12px rgba(0, 243, 255, 0.4);
+        }
     </style>
 </head>
 <body>
 
-    <!-- 3D 地球背景 -->
     <div id="globeViz"></div>
 
-    <!-- UI 控制面板疊層 -->
     <div class="ui-layer">
         <header>
-            <div class="logo">TW-OSINT<span> // MONITOR</span></div>
+            <div class="logo">TW-OSINT<span> // 台灣開源情報監測站</span></div>
             <div class="sys-status">
                 <div class="time" id="utc-clock">00:00:00 UTC</div>
-                <div class="badge">● SYSTEM NOMINAL</div>
+                <div class="badge">● 系統連線正常</div>
             </div>
         </header>
 
         <div class="dashboard">
             <!-- 左側：即時新聞情報 (SIGINT) -->
             <div class="panel">
-                <div class="panel-header">SIGINT / NEWS FEED</div>
+                <div class="panel-header">SIGINT // 即時焦點新聞</div>
                 <div class="panel-content" id="news-feed">
                     <div style="text-align: center; color: var(--muted); font-family: var(--mono); margin-top: 20px;">
-                        [ INITIALIZING SAT-LINK... ]
+                        [ 正在接收衛星數據... ]
                     </div>
                 </div>
             </div>
 
             <!-- 右側：區域數據儀表板 (Telemetry) -->
             <div class="panel">
-                <div class="panel-header">REGIONAL TELEMETRY</div>
+                <div class="panel-header">TELEMETRY // 區域動態監測</div>
                 <div class="panel-content">
                     
                     <div class="widget">
-                        <div class="widget-label">TAIEX IDX</div>
-                        <div class="widget-val" id="taiex" style="color: var(--success)">22,431.50</div>
+                        <div class="widget-label">台股加權指數</div>
+                        <div class="widget-val" id="taiex" style="color: var(--success)">22,453.70</div>
                     </div>
                     
                     <div class="widget">
-                        <div class="widget-label">DEFCON</div>
-                        <div class="widget-val" style="color: var(--success)">4</div>
+                        <div class="widget-label">戰備等級 (DEFCON)</div>
+                        <div class="widget-val" style="color: var(--success)">4 (正常)</div>
                     </div>
                     
                     <div class="widget">
-                        <div class="widget-label">ADIZ STATUS</div>
-                        <div class="widget-val" style="color: var(--warning)">MONITORING</div>
+                        <div class="widget-label">防空識別區 (ADIZ)</div>
+                        <div class="widget-val" style="color: var(--warning)">持續監控中</div>
                     </div>
 
-                    <div class="panel-header" style="padding: 12px 0; margin-top: 10px; background: transparent;">SEISMIC SENSORS (USGS)</div>
+                    <div class="panel-header" style="padding: 12px 0; margin-top: 10px; background: transparent;">SEISMIC // 地震即時感測 (USGS)</div>
                     <div id="eq-feed">
                         <div style="font-size: 0.8rem; color: var(--muted); font-family: var(--mono); text-align: center; margin-top: 20px;">
-                            [ SCANNING SEISMIC DATA... ]
+                            [ 掃描地質數據中... ]
                         </div>
                     </div>
 
@@ -160,37 +186,61 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            // 1. 初始化 3D 地球 (使用 Globe.gl)
             const globeVizEl = document.getElementById('globeViz');
             if (globeVizEl && typeof Globe !== 'undefined') {
                 const globe = Globe({ animateIn: true })(globeVizEl)
                     .globeImageUrl('https://unpkg.com/three-globe/example/img/earth-dark.jpg')
                     .bumpImageUrl('https://unpkg.com/three-globe/example/img/earth-topology.png')
                     .backgroundColor('#050505')
-                    .pointOfView({ lat: 23.5, lng: 121, altitude: 0.8 }, 2000); // 聚焦台灣
+                    .showAtmosphere(true)
+                    .atmosphereColor('#00f3ff')
+                    .atmosphereAltitude(0.15)
+                    // 鏡頭特寫：縮放比例調至 0.4（拉近），座標鎖定台灣中心 (23.6, 120.9)
+                    .pointOfView({ lat: 23.6, lng: 120.9, altitude: 0.4 }, 1500);
 
-                // 動態光圈標記 (台北、高雄、新竹)
+                // 1. 動態光圈感測雷達
                 const rings = [
-                    { lat: 25.033, lng: 121.565, maxR: 1.5, propagationSpeed: 1, repeatPeriod: 1000 },
-                    { lat: 22.627, lng: 120.301, maxR: 1.5, propagationSpeed: 1, repeatPeriod: 1500 },
-                    { lat: 24.813, lng: 120.967, maxR: 1.0, propagationSpeed: 1, repeatPeriod: 1200 }
+                    { lat: 25.033, lng: 121.565, maxR: 1.8, propagationSpeed: 1.2, repeatPeriod: 800 }, // 台北
+                    { lat: 24.813, lng: 120.967, maxR: 1.5, propagationSpeed: 1.0, repeatPeriod: 1000 }, // 新竹
+                    { lat: 22.627, lng: 120.301, maxR: 1.8, propagationSpeed: 1.2, repeatPeriod: 900 },  // 高雄
+                    { lat: 23.977, lng: 121.604, maxR: 1.5, propagationSpeed: 1.0, repeatPeriod: 1100 }  // 花蓮
                 ];
                 
                 globe
                     .ringsData(rings)
-                    .ringColor(() => '#3b82f6')
+                    .ringColor(() => '#00f3ff')
                     .ringMaxRadius('maxR')
                     .ringPropagationSpeed('propagationSpeed')
                     .ringRepeatPeriod('repeatPeriod');
+
+                // 2. 標記站點與清晰文字標籤
+                const markerData = [
+                    { lat: 25.033, lng: 121.565, name: '台北監測站' },
+                    { lat: 24.813, lng: 120.967, name: '新竹感測站' },
+                    { lat: 22.627, lng: 120.301, name: '高雄雷達站' },
+                    { lat: 23.977, lng: 121.604, name: '花蓮觀察站' }
+                ];
+
+                globe
+                    .htmlElementsData(markerData)
+                    .htmlElement(d => {
+                        const el = document.createElement('div');
+                        el.className = 'map-marker';
+                        el.innerHTML = `
+                            <div class="marker-dot"></div>
+                            <div class="marker-label">${d.name}</div>
+                        `;
+                        return el;
+                    });
                     
-                globe.controls().minDistance = 50;
-                globe.controls().maxDistance = 300;
-                globe.controls().enablePan = false;
-                globe.controls().autoRotate = true;
-                globe.controls().autoRotateSpeed = 0.3;
+                // 控制設定：關閉自動旋轉（保持台灣在前方），允許使用者自由拖曳旋轉與縮放
+                globe.controls().minDistance = 20;
+                globe.controls().maxDistance = 200;
+                globe.controls().enablePan = true;
+                globe.controls().autoRotate = false; 
             }
 
-            // 2. 即時 UTC 時鐘
+            // UTC 時鐘
             function updateClock() {
                 const clockEl = document.getElementById('utc-clock');
                 if (clockEl) {
@@ -200,12 +250,12 @@
             setInterval(updateClock, 1000);
             updateClock();
 
-            // 3. 抓取開源新聞情報
+            // 抓取繁體中文焦點新聞
             async function fetchIntel() {
                 const container = document.getElementById('news-feed');
                 if (!container) return;
                 try {
-                    const rssUrl = encodeURIComponent('https://news.google.com/rss/search?q=Taiwan+military+OR+economy&hl=en-US&gl=US&ceid=US:en');
+                    const rssUrl = encodeURIComponent('https://news.google.com/rss/search?q=%E5%8F%B0%E7%81%A3+%E8%BB%8D%E4%BA%8B+OR+%E7%B6%93%E6%BF%9F&hl=zh-TW&gl=TW&ceid=TW:zh-Hant');
                     const res = await fetch(`https://api.rss2json.com/v1/api.json?rss_url=${rssUrl}`);
                     const data = await res.json();
                     
@@ -217,7 +267,7 @@
                                 <div class="feed-item">
                                     <div class="feed-meta">
                                         <span>[${timeStr}]</span>
-                                        <span class="tag">OSINT</span>
+                                        <span class="tag">開源情報</span>
                                     </div>
                                     <div class="feed-title">
                                         <a href="${item.link}" target="_blank">${item.title}</a>
@@ -226,16 +276,16 @@
                             `;
                         });
                     } else {
-                        container.innerHTML = '<div style="text-align:center;color:var(--muted);font-family:var(--mono);">[ NO FEED DATA ]</div>';
+                        container.innerHTML = '<div style="text-align:center;color:var(--muted);font-family:var(--mono);">[ 無新聞數據 ]</div>';
                     }
                 } catch(e) {
-                    container.innerHTML = '<div style="text-align:center;color:var(--danger);font-family:var(--mono);">ERR_FEED_OFFLINE</div>';
+                    container.innerHTML = '<div style="text-align:center;color:var(--danger);font-family:var(--mono);">情報連線中斷</div>';
                 }
             }
             fetchIntel();
             setInterval(fetchIntel, 300000);
 
-            // 4. 抓取地震數據 (USGS API)
+            // 抓取地震數據
             async function fetchEq() {
                 const container = document.getElementById('eq-feed');
                 if (!container) return;
@@ -245,7 +295,7 @@
                     container.innerHTML = '';
                     
                     if (!data.features || data.features.length === 0) {
-                        container.innerHTML = '<div style="color:var(--muted); font-size: 0.8rem; margin-top: 10px;">No recent anomalies.</div>';
+                        container.innerHTML = '<div style="color:var(--muted); font-size: 0.8rem; margin-top: 10px;">近期無異常地震</div>';
                         return;
                     }
 
@@ -256,28 +306,28 @@
                         
                         let color = 'var(--text)';
                         let tag = '';
-                        if(mag >= 4.5) { color = 'var(--danger)'; tag = '<span class="tag alert">ALERT</span>'; }
+                        if(mag >= 4.5) { color = 'var(--danger)'; tag = '<span class="tag alert">地震警報</span>'; }
                         else if(mag >= 3.5) { color = 'var(--warning)'; }
 
                         container.innerHTML += `
                             <div class="feed-item" style="padding-bottom: 8px; margin-bottom: 8px;">
                                 <div class="feed-meta" style="color: ${color}">
-                                    <span>M ${mag.toFixed(1)} | ${time}</span>
+                                    <span>規模 M ${mag.toFixed(1)} | ${time}</span>
                                     ${tag}
                                 </div>
-                                <div class="feed-title" style="font-size: 0.8rem; color: var(--muted)">${place}</div>
+                                <div class="feed-title" style="font-size: 0.8rem; color: var(--muted)">震央位置：${place}</div>
                             </div>
                         `;
                     });
                 } catch(e) {
-                    container.innerHTML = '<div style="color:var(--muted); font-size: 0.8rem; margin-top: 10px;">USGS Offline</div>';
+                    container.innerHTML = '<div style="color:var(--muted); font-size: 0.8rem; margin-top: 10px;">地震監測站連線中斷</div>';
                 }
             }
             fetchEq();
             setInterval(fetchEq, 300000);
 
-            // 5. 模擬台股指數跳動
-            let baseTaiex = 22431.50;
+            // 模擬台股大盤動態
+            let baseTaiex = 22453.70;
             setInterval(() => {
                 const change = (Math.random() - 0.5) * 15;
                 baseTaiex += change;
