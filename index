@@ -98,7 +98,6 @@
 
         .tag { font-size: 0.65rem; padding: 2px 6px; border-radius: 4px; background: #333; color: #fff; }
         .tag.alert { background: rgba(239,68,68,0.2); color: var(--danger); border: 1px solid var(--danger); }
-        
     </style>
 </head>
 <body>
@@ -160,124 +159,135 @@
     </div>
 
     <script>
-        // 1. 初始化 3D 地球 (使用 Globe.gl)
-        const globe = Globe({ animateIn: true })
-            (document.getElementById('globeViz'))
-            .globeImageUrl('https://unpkg.com/three-globe/example/img/earth-dark.jpg')
-            .bumpImageUrl('https://unpkg.com/three-globe/example/img/earth-topology.png')
-            .backgroundColor('#050505')
-            .pointOfView({ lat: 23.5, lng: 121, altitude: 0.8 }, 2000); // 聚焦台灣
+        document.addEventListener('DOMContentLoaded', () => {
+            // 1. 初始化 3D 地球 (使用 Globe.gl)
+            const globeVizEl = document.getElementById('globeViz');
+            if (globeVizEl && typeof Globe !== 'undefined') {
+                const globe = Globe({ animateIn: true })(globeVizEl)
+                    .globeImageUrl('https://unpkg.com/three-globe/example/img/earth-dark.jpg')
+                    .bumpImageUrl('https://unpkg.com/three-globe/example/img/earth-topology.png')
+                    .backgroundColor('#050505')
+                    .pointOfView({ lat: 23.5, lng: 121, altitude: 0.8 }, 2000); // 聚焦台灣
 
-        // 在台灣及周邊建立動態光圈標記 (模擬雷達/感測器)
-        const rings = [
-            { lat: 25.033, lng: 121.565, maxR: 1.5, propagationSpeed: 1, repeatPeriod: 1000 }, // 台北
-            { lat: 22.627, lng: 120.301, maxR: 1.5, propagationSpeed: 1, repeatPeriod: 1500 }, // 高雄
-            { lat: 24.813, lng: 120.967, maxR: 1.0, propagationSpeed: 1, repeatPeriod: 1200 }  // 新竹
-        ];
-        
-        globe
-            .ringsData(rings)
-            .ringColor(() => '#3b82f6')
-            .ringMaxRadius('maxR')
-            .ringPropagationSpeed('propagationSpeed')
-            .ringRepeatPeriod('repeatPeriod');
-            
-        // 限制縮放與平移，保持視角在亞太區域
-        globe.controls().minDistance = 50;
-        globe.controls().maxDistance = 300;
-        globe.controls().enablePan = false;
-        globe.controls().autoRotate = true;
-        globe.controls().autoRotateSpeed = 0.3;
-
-        // 2. 即時 UTC 時鐘
-        function updateClock() {
-            document.getElementById('utc-clock').innerText = new Date().toISOString().replace('T', ' ').substring(0, 19) + ' Z';
-        }
-        setInterval(updateClock, 1000);
-        updateClock();
-
-        // 3. 抓取開源新聞情報 (透過 rss2json 讀取 Google News 台灣焦點)
-        async function fetchIntel() {
-            try {
-                const rssUrl = encodeURIComponent('https://news.google.com/rss/search?q=Taiwan+military+OR+economy&hl=en-US&gl=US&ceid=US:en');
-                const res = await fetch(`https://api.rss2json.com/v1/api.json?rss_url=${rssUrl}`);
-                const data = await res.json();
+                // 動態光圈標記 (台北、高雄、新竹)
+                const rings = [
+                    { lat: 25.033, lng: 121.565, maxR: 1.5, propagationSpeed: 1, repeatPeriod: 1000 },
+                    { lat: 22.627, lng: 120.301, maxR: 1.5, propagationSpeed: 1, repeatPeriod: 1500 },
+                    { lat: 24.813, lng: 120.967, maxR: 1.0, propagationSpeed: 1, repeatPeriod: 1200 }
+                ];
                 
-                const container = document.getElementById('news-feed');
-                container.innerHTML = '';
-                
-                // 取前 6 筆新聞
-                data.items.slice(0, 6).forEach(item => {
-                    const timeStr = new Date(item.pubDate).toISOString().substring(5,16).replace('T', ' ');
-                    container.innerHTML += `
-                        <div class="feed-item">
-                            <div class="feed-meta">
-                                <span>[${timeStr}]</span>
-                                <span class="tag">OSINT</span>
-                            </div>
-                            <div class="feed-title">
-                                <a href="${item.link}" target="_blank">${item.title}</a>
-                            </div>
-                        </div>
-                    `;
-                });
-            } catch(e) {
-                document.getElementById('news-feed').innerHTML = '<span style="color:var(--danger)">ERR_FEED_OFFLINE</span>';
-            }
-        }
-        fetchIntel();
-        setInterval(fetchIntel, 300000); // 每 5 分鐘更新一次
-
-        // 4. 抓取地震數據 (使用 USGS 官方 API，過濾台灣周邊的 Bounding Box)
-        async function fetchEq() {
-            try {
-                const res = await fetch('https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&minlatitude=21.0&maxlatitude=26.0&minlongitude=119.0&maxlongitude=123.0&limit=5');
-                const data = await res.json();
-                const container = document.getElementById('eq-feed');
-                container.innerHTML = '';
-                
-                if (data.features.length === 0) {
-                    container.innerHTML = '<div style="color:var(--muted); font-size: 0.8rem; margin-top: 10px;">No recent anomalies.</div>';
-                    return;
-                }
-
-                data.features.forEach(eq => {
-                    const mag = eq.properties.mag;
-                    const place = eq.properties.place;
-                    const time = new Date(eq.properties.time).toISOString().substring(5,16).replace('T', ' ');
+                globe
+                    .ringsData(rings)
+                    .ringColor(() => '#3b82f6')
+                    .ringMaxRadius('maxR')
+                    .ringPropagationSpeed('propagationSpeed')
+                    .ringRepeatPeriod('repeatPeriod');
                     
-                    let color = 'var(--text)';
-                    let tag = '';
-                    if(mag >= 4.5) { color = 'var(--danger)'; tag = '<span class="tag alert">ALERT</span>'; }
-                    else if(mag >= 3.5) { color = 'var(--warning)'; }
-
-                    container.innerHTML += `
-                        <div class="feed-item" style="padding-bottom: 8px; margin-bottom: 8px;">
-                            <div class="feed-meta" style="color: ${color}">
-                                <span>M ${mag.toFixed(1)} | ${time}</span>
-                                ${tag}
-                            </div>
-                            <div class="feed-title" style="font-size: 0.8rem; color: var(--muted)">${place}</div>
-                        </div>
-                    `;
-                });
-            } catch(e) {
-                console.error("Earthquake fetch error:", e);
+                globe.controls().minDistance = 50;
+                globe.controls().maxDistance = 300;
+                globe.controls().enablePan = false;
+                globe.controls().autoRotate = true;
+                globe.controls().autoRotateSpeed = 0.3;
             }
-        }
-        fetchEq();
-        setInterval(fetchEq, 300000);
 
-        // 5. 模擬股市數據 (TAIEX) 跳動，增加動態感
-        let baseTaiex = 22431.50;
-        setInterval(() => {
-            const change = (Math.random() - 0.5) * 15;
-            baseTaiex += change;
-            const el = document.getElementById('taiex');
-            el.innerText = baseTaiex.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-            el.style.color = change >= 0 ? 'var(--success)' : 'var(--danger)';
-        }, 3500);
+            // 2. 即時 UTC 時鐘
+            function updateClock() {
+                const clockEl = document.getElementById('utc-clock');
+                if (clockEl) {
+                    clockEl.innerText = new Date().toISOString().replace('T', ' ').substring(0, 19) + ' Z';
+                }
+            }
+            setInterval(updateClock, 1000);
+            updateClock();
 
+            // 3. 抓取開源新聞情報
+            async function fetchIntel() {
+                const container = document.getElementById('news-feed');
+                if (!container) return;
+                try {
+                    const rssUrl = encodeURIComponent('https://news.google.com/rss/search?q=Taiwan+military+OR+economy&hl=en-US&gl=US&ceid=US:en');
+                    const res = await fetch(`https://api.rss2json.com/v1/api.json?rss_url=${rssUrl}`);
+                    const data = await res.json();
+                    
+                    container.innerHTML = '';
+                    if (data.items && data.items.length > 0) {
+                        data.items.slice(0, 6).forEach(item => {
+                            const timeStr = new Date(item.pubDate).toISOString().substring(5,16).replace('T', ' ');
+                            container.innerHTML += `
+                                <div class="feed-item">
+                                    <div class="feed-meta">
+                                        <span>[${timeStr}]</span>
+                                        <span class="tag">OSINT</span>
+                                    </div>
+                                    <div class="feed-title">
+                                        <a href="${item.link}" target="_blank">${item.title}</a>
+                                    </div>
+                                </div>
+                            `;
+                        });
+                    } else {
+                        container.innerHTML = '<div style="text-align:center;color:var(--muted);font-family:var(--mono);">[ NO FEED DATA ]</div>';
+                    }
+                } catch(e) {
+                    container.innerHTML = '<div style="text-align:center;color:var(--danger);font-family:var(--mono);">ERR_FEED_OFFLINE</div>';
+                }
+            }
+            fetchIntel();
+            setInterval(fetchIntel, 300000);
+
+            // 4. 抓取地震數據 (USGS API)
+            async function fetchEq() {
+                const container = document.getElementById('eq-feed');
+                if (!container) return;
+                try {
+                    const res = await fetch('https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&minlatitude=21.0&maxlatitude=26.0&minlongitude=119.0&maxlongitude=123.0&limit=5');
+                    const data = await res.json();
+                    container.innerHTML = '';
+                    
+                    if (!data.features || data.features.length === 0) {
+                        container.innerHTML = '<div style="color:var(--muted); font-size: 0.8rem; margin-top: 10px;">No recent anomalies.</div>';
+                        return;
+                    }
+
+                    data.features.forEach(eq => {
+                        const mag = eq.properties.mag;
+                        const place = eq.properties.place;
+                        const time = new Date(eq.properties.time).toISOString().substring(5,16).replace('T', ' ');
+                        
+                        let color = 'var(--text)';
+                        let tag = '';
+                        if(mag >= 4.5) { color = 'var(--danger)'; tag = '<span class="tag alert">ALERT</span>'; }
+                        else if(mag >= 3.5) { color = 'var(--warning)'; }
+
+                        container.innerHTML += `
+                            <div class="feed-item" style="padding-bottom: 8px; margin-bottom: 8px;">
+                                <div class="feed-meta" style="color: ${color}">
+                                    <span>M ${mag.toFixed(1)} | ${time}</span>
+                                    ${tag}
+                                </div>
+                                <div class="feed-title" style="font-size: 0.8rem; color: var(--muted)">${place}</div>
+                            </div>
+                        `;
+                    });
+                } catch(e) {
+                    container.innerHTML = '<div style="color:var(--muted); font-size: 0.8rem; margin-top: 10px;">USGS Offline</div>';
+                }
+            }
+            fetchEq();
+            setInterval(fetchEq, 300000);
+
+            // 5. 模擬台股指數跳動
+            let baseTaiex = 22431.50;
+            setInterval(() => {
+                const change = (Math.random() - 0.5) * 15;
+                baseTaiex += change;
+                const el = document.getElementById('taiex');
+                if (el) {
+                    el.innerText = baseTaiex.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                    el.style.color = change >= 0 ? 'var(--success)' : 'var(--danger)';
+                }
+            }, 3500);
+        });
     </script>
 </body>
 </html>
